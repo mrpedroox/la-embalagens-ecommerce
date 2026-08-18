@@ -1,67 +1,90 @@
 # L&A Embalagens — Full Stack Ecommerce
 
-A packaging and party-supplies (bomboniere) ecommerce platform, built with a FastAPI backend and a React frontend. The project focuses on real backend engineering problems — safe inventory concurrency, an order state machine, and asynchronous payment processing — rather than just another product/order CRUD.
+An ecommerce platform for packaging and party supplies.
 
-This repository contains both projects, each with its own detailed README:
+The project will consist of a FastAPI backend and a React frontend. Its architecture focuses on real ecommerce concerns, including safe inventory concurrency, order lifecycle management, asynchronous processing, and the usual catalog, cart, and checkout features.
 
-- [`ecommerce-backend/`](./ecommerce-backend/README.md) — FastAPI API, PostgreSQL, Redis, async task queue
-- [`ecommerce-frontend/`](./ecommerce-frontend/README.md) — React + Vite + TypeScript
+> 🚧 The project is in its initial preparation phase. The architecture and organization are documented, but the implementation, dependencies, and infrastructure files have not yet been created.
 
-## Overview
+## Architecture overview
 
-```
-┌─────────────────┐        ┌──────────────────┐
-│  ecommerce-frontend │  ───▶  │   ecommerce-backend  │
-│   React + Vite    │  REST  │      FastAPI       │
-└─────────────────┘        └──────────┬─────────┘
-                                    │
-                       ┌───────────┼───────────┐
-                       ▼             ▼             ▼
-                  PostgreSQL       Redis          Worker (arq)
-                (transactional data) (cache/broker)  (payment, email)
+```text
+React + Vite ── REST ──▶ FastAPI
+                            ├─ PostgreSQL: transactional data
+                            ├─ Redis: cache and task broker
+                            └─ arq worker: asynchronous processing
 ```
 
-**Checkout flow:** cart → delivery choice (pickup or home delivery) → payment confirmation — inspired by the Pague Menos checkout experience.
+The planned services are:
 
-## Running the whole project
+- **frontend** — React application responsible for the shopping experience;
+- **api** — FastAPI application;
+- **db** — PostgreSQL for transactional data;
+- **redis** — catalog cache and task broker;
+- **worker** — asynchronous processing with arq.
 
-Prerequisites: Docker and Docker Compose.
+## Planned checkout flow
 
-```bash
-git clone <repository-url>
-cd ecommerce-project
-
-# set up backend environment variables
-cp ecommerce-backend/.env.example ecommerce-backend/.env
-
-# start everything: database, redis, api, worker, and frontend
-docker compose up -d
-
-# apply database migrations
-docker compose exec api alembic upgrade head
+```text
+Cart → pickup or delivery choice → payment confirmation
 ```
 
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:5173 |
-| API | http://localhost:8000 |
-| API docs (Swagger) | http://localhost:8000/docs |
+At a high level:
+
+1. The customer adds products to the cart.
+2. They choose store pickup or delivery to a saved address.
+3. The API creates a pending order and a pending payment.
+4. In the MVP, an administrator manually confirms the payment.
+5. An asynchronous task confirms the payment, updates the order, processes inventory, and sends a notification.
+6. Unpaid orders will expire according to rules that will be defined during implementation.
 
 ## Repository structure
 
+```text
+la-embalagens-ecommerce/
+├── README.md
+├── docker-compose.yml
+├── ecommerce-backend/
+│   └── README.md
+└── ecommerce-frontend/
+    └── README.md
 ```
-ecommerce-project/
-├── README.md                 # this file
-├── docker-compose.yml           # orchestrates all services
-├── ecommerce-backend/            # FastAPI API (see its own README)
-└── ecommerce-frontend/           # React app (see its own README)
-```
 
-## Project status
+At the current stage, the backend and frontend directories contain architecture and planning documentation only.
 
-See detailed progress in each project's README:
-- [Backend status](./ecommerce-backend/README.md#status)
-- Frontend status — in progress
+## Project documentation
 
----
+- [Backend](./ecommerce-backend/README.md) — FastAPI API, PostgreSQL, Redis, worker, and domain decisions.
+- [Frontend](./ecommerce-frontend/README.md) — React stack, feature-based organization, and authentication strategy.
 
+## Current status
+
+Already defined:
+
+- overall architecture;
+- backend and frontend stacks;
+- services planned in Docker Compose;
+- modular organization;
+- core inventory, order, payment, and authentication decisions.
+
+Not implemented yet:
+
+- backend and frontend code;
+- Dockerfiles;
+- Python and Node.js dependency files;
+- example environment file;
+- database migrations and schema;
+- tests;
+- Alembic, Vite, Tailwind, and quality-tool configuration.
+
+## Next steps
+
+1. Prepare the executable backend foundation and its infrastructure.
+2. Configure PostgreSQL, Redis, Alembic, and tests.
+3. Implement backend domains incrementally.
+4. Prepare the frontend foundation and integrate authentication.
+5. Build catalog, cart, checkout, and order flows vertically.
+
+## Running the project
+
+Run instructions will be added when Dockerfiles, dependency files, and the example environment file are available.

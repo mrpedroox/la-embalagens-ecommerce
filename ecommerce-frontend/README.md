@@ -1,132 +1,145 @@
 # L&A Embalagens — Frontend
 
-React frontend for the L&A Embalagens ecommerce (packaging and party supplies / bomboniere). Consumes the [FastAPI backend](../ecommerce-backend/README.md) and implements user registration/login, product browsing, cart, and a checkout flow with pickup or delivery — inspired by the Pague Menos website.
+Frontend application for L&A Embalagens, a packaging and party-supplies ecommerce business.
 
-> 🚧 Planning stage. Structure and stack are defined; implementation hasn't started yet. See [Status](#status).
+The application will be built with React, Vite, and TypeScript. It will consume the FastAPI API and provide registration, authentication, catalog, cart, checkout, and order flows.
 
-## Table of contents
+> 🚧 The frontend is in the planning phase. The stack, feature-based organization, and authentication strategy are defined, but the application has not yet been implemented.
 
-- [Stack](#stack)
-- [Project structure](#project-structure)
-- [Design direction](#design-direction)
-- [Auth strategy](#auth-strategy)
-- [Running locally](#running-locally)
-- [Status](#status)
-
-## Stack
+## Defined stack
 
 | Layer | Technology |
 |---|---|
-| Framework | React + [Vite](https://vitejs.dev/) |
+| Framework | React + Vite |
 | Language | TypeScript |
 | Styling | Tailwind CSS |
 | Routing | react-router |
-| HTTP client | axios (or fetch wrapper) with an auth interceptor |
-| Tests | Vitest + React Testing Library |
+| HTTP client | axios or an equivalent fetch-based wrapper |
+| Tests | Vitest and React Testing Library |
 
-## Project structure
+## Backend integration
 
-```
-src/
-├── main.tsx
-├── App.tsx
-├── routes.tsx              # route definitions (react-router)
-│
-├── api/
-│   ├── client.ts             # axios/fetch instance with token interceptor
-│   ├── auth.ts               # /register, /login, /me calls
-│   ├── catalog.ts
-│   ├── cart.ts
-│   └── orders.ts
-│
-├── features/
-│   ├── auth/
-│   │   ├── LoginPage.tsx
-│   │   ├── RegisterPage.tsx
-│   │   ├── useAuth.ts          # authentication context hook
-│   │   └── AuthContext.tsx
-│   │
-│   ├── catalog/
-│   │   ├── ProductListPage.tsx
-│   │   ├── ProductDetailPage.tsx
-│   │   └── components/
-│   │       ├── ProductCard.tsx
-│   │       └── StockBadge.tsx
-│   │
-│   ├── cart/
-│   │   ├── CartPage.tsx
-│   │   ├── CartContext.tsx
-│   │   └── components/
-│   │       └── CartItem.tsx
-│   │
-│   ├── checkout/
-│   │   ├── CheckoutPage.tsx         # delivery choice + payment method
-│   │   └── OrderConfirmationPage.tsx
-│   │
-│   └── orders/
-│       ├── OrderHistoryPage.tsx
-│       └── OrderDetailPage.tsx
-│
-├── components/            # generic, reusable components
-│   ├── ui/
-│   │   ├── Button.tsx
-│   │   ├── Input.tsx
-│   │   └── Modal.tsx
-│   ├── Navbar.tsx
-│   ├── Footer.tsx
-│   └── ProtectedRoute.tsx     # route guard for authenticated pages
-│
-├── hooks/
-│   └── useDebounce.ts
-│
-├── lib/
-│   └── utils.ts
-│
-├── types/
-│   ├── product.ts
-│   ├── order.ts
-│   └── user.ts
-│
-└── styles/
-    └── globals.css
+The frontend will consume the FastAPI API through REST.
 
-tests/
-└── auth/
-    └── LoginPage.test.tsx
+```text
+React + Vite → FastAPI API → PostgreSQL / Redis / Worker
 ```
 
-## Design direction
+API contracts will be defined alongside incremental backend work. Screens must not assume endpoints, fields, or rules that have not yet been formalized.
 
-Early exploration used an earthy, editorial catalog aesthetic as a design study (see `homepage-mockup.html` in project notes) — but that was built around a generic artisan-goods placeholder brand, not L&A Embalagens' real identity. L&A's actual visual identity (bright orange/green signage) is more energetic and playful than that mockup, fitting a packaging/bomboniere business. The real visual direction — palette, typography, and layout — still needs to be adapted to that identity before implementation starts.
+## Planned project structure
 
-## Auth strategy
-
-The backend issues a JWT on login. Planned approach: **httpOnly cookie** rather than `localStorage`, so the token isn't readable by JavaScript (mitigates XSS). This requires:
-- The backend to set the cookie on the `/login` response
-- The frontend's API client to send requests with `credentials: 'include'`
-
-## Running locally
-
-Prerequisites: Node.js and the backend running (see [backend README](../ecommerce-backend/README.md)).
-
-```bash
-cd ecommerce-frontend
-npm install
-npm run dev
+```text
+ecommerce-frontend/
+├── src/
+│   ├── main.tsx
+│   ├── App.tsx
+│   ├── routes.tsx
+│   │
+│   ├── api/
+│   │   ├── client.ts
+│   │   ├── auth.ts
+│   │   ├── catalog.ts
+│   │   ├── cart.ts
+│   │   └── orders.ts
+│   │
+│   ├── features/
+│   │   ├── auth/
+│   │   ├── catalog/
+│   │   ├── cart/
+│   │   ├── checkout/
+│   │   └── orders/
+│   │
+│   ├── components/
+│   │   ├── ui/
+│   │   ├── Navbar.tsx
+│   │   ├── Footer.tsx
+│   │   └── ProtectedRoute.tsx
+│   │
+│   ├── hooks/
+│   ├── lib/
+│   ├── types/
+│   └── styles/
+│       └── globals.css
+│
+└── tests/
 ```
 
-The app will be available at `http://localhost:5173`, expecting the API at `http://localhost:8000` (configurable via `VITE_API_URL`).
+The structure will be created as each flow is implemented. Generic components must remain in `components/`, while feature-specific components belong to their corresponding feature.
+
+## Planned functionality
+
+### Authentication
+
+- registration;
+- login;
+- authenticated-user lookup;
+- protected routes for authenticated sessions.
+
+### Catalog
+
+- product listing;
+- product detail pages;
+- stock availability indicators;
+- category navigation when supported by the backend.
+
+### Cart and checkout
+
+- cart-item management;
+- pickup or delivery selection;
+- saved-address selection for delivery;
+- order confirmation and the payment method available in the MVP.
+
+### Orders
+
+- customer order history;
+- order detail view;
+- presentation of the current order status.
+
+## Authentication strategy
+
+The backend will issue a JWT on login, but the token will be stored in an `httpOnly` cookie rather than `localStorage`.
+
+This reduces token exposure to scripts running in the browser. The implementation must ensure that:
+
+- the backend sets the cookie in the login response;
+- the HTTP client sends requests with credentials included;
+- the backend configures CORS for the frontend origin with credential support;
+- cookie attributes such as `SameSite` and `Secure` are configured for the environment.
+
+The HTTP client must not depend on reading the JWT in JavaScript or adding it manually to each request.
+
+## Visual direction
+
+The visual identity remains to be defined before screen implementation begins.
+
+An early exploration used an editorial aesthetic with earthy tones, but it does not represent the real brand. L&A Embalagens has a more energetic identity, with orange and green references. The palette, typography, visual components, layout, and brand assets still need to be defined.
+
+## Local development
+
+Run instructions will be added when the following are available:
+
+- initial Vite project;
+- `package.json` and a lockfile;
+- Tailwind configuration;
+- frontend Dockerfile;
+- test configuration;
+- `VITE_API_URL` environment variable.
+
+The application will use `VITE_API_URL` to define the API URL, with `http://localhost:8000` as the expected local-development value.
 
 ## Status
 
-- [x] Stack decision (React + Vite + TypeScript + Tailwind)
-- [x] Directory structure defined
-- [ ] Visual identity adapted from L&A's real branding
-- [ ] Auth pages (login/register) wired to the backend
-- [ ] Product catalog browsing
+- [x] Stack defined
+- [x] Feature-based structure planned
+- [x] Authentication strategy defined
+- [ ] L&A visual identity adapted and documented
+- [ ] React + Vite + TypeScript base project
+- [ ] Tailwind CSS and generic components
+- [ ] Routes and credential-aware HTTP client
+- [ ] Registration and login pages
+- [ ] Product catalog
 - [ ] Cart
-- [ ] Checkout (pickup/delivery + payment method)
-- [ ] Order history
-
----
-
+- [ ] Pickup or delivery checkout
+- [ ] Order history and details
+- [ ] Interface tests
