@@ -1,134 +1,159 @@
 # L&A Embalagens — Backend
 
-Ecommerce API for L&A Embalagens (packaging and party supplies / bomboniere), built with FastAPI. The checkout flow is inspired by the Pague Menos website: cart → delivery choice (pickup or home delivery) → payment confirmation. The project focuses on real backend problems — safe inventory concurrency, an order state machine, asynchronous payment processing, and caching — not just product/order CRUD.
+Ecommerce API for L&A Embalagens, a packaging and party-supplies business.
 
-> 🚧 Actively in development. See [Status](#status) for current progress.
+The backend will be built with FastAPI and will focus on real ecommerce concerns: safe inventory concurrency, an order state machine, asynchronous processing, payments, and catalog caching.
 
-## Table of contents
+> 🚧 The backend is in the preparation phase. The architecture, stack, and primary technical decisions are defined, but code, dependencies, migrations, and tests have not yet been created.
 
-- [Why this project](#why-this-project)
-- [Stack](#stack)
-- [Architecture](#architecture)
-- [Project structure](#project-structure)
-- [Running locally](#running-locally)
-- [Tests](#tests)
-- [Technical decisions](#technical-decisions)
-- [Status](#status)
+## Backend goals
 
-## Why this project
+The planned checkout flow is:
 
-Most portfolio ecommerce projects stop at product/order CRUD. This one goes further, implementing:
+```text
+Cart → pickup or delivery choice → payment confirmation
+```
 
-- **Optimistic locking on inventory** — prevents overselling when two requests race for the last unit of a product
-- **Order state machine** with an auditable history (`pending → awaiting_payment → paid → preparing → out_for_delivery → delivered`)
-- **Pickup or delivery** — an order can be picked up in-store or shipped to one of the customer's saved addresses
-- **Asynchronous payment flow** — manually confirmed in the MVP, with a task queue and an idempotent webhook endpoint already in place for a real payment gateway later
-- **Catalog caching** with Redis invalidation
-- **Concurrency tests** proving the inventory solution actually holds up under simultaneous load
+The solution will cover:
 
-## Stack
+- safe inventory handling under concurrent requests;
+- orders with an auditable state-change history;
+- store pickup or delivery to a saved address;
+- manual payment confirmation in the MVP;
+- asynchronous task processing;
+- Redis-backed catalog caching;
+- a foundation for a future payment-gateway integration.
+
+## Defined stack
 
 | Layer | Technology |
 |---|---|
-| API | [FastAPI](https://fastapi.tiangolo.com/) (async) |
-| ORM | [SQLModel](https://sqlmodel.tiangolo.com/) |
+| API | Async FastAPI |
+| Language | Python |
+| ORM | SQLModel |
 | Database | PostgreSQL |
 | Migrations | Alembic |
-| Cache / broker | Redis |
-| Async task queue | [arq](https://github.com/samuelcolvin/arq) |
+| Cache and broker | Redis |
+| Async queue | arq |
 | Authentication | OAuth2 + JWT |
-| Payments | Stripe (sandbox) |
-| Containerization | Docker + Docker Compose |
-| Tests | pytest + httpx |
+| Future payments | Stripe sandbox or an equivalent gateway |
+| Containerization | Docker and Docker Compose |
+| Tests | pytest and httpx |
 
-## Architecture
+## Planned architecture
 
-```
-Client → FastAPI ──┬─→ PostgreSQL (transactional data)
-                    ├─→ Redis (catalog cache)
-                    └─→ Queue (arq) ──→ Async worker
-                                              ├─→ Payment confirmation
-                                              ├─→ Inventory deduction
-                                              └─→ Email delivery
-```
-
-**Checkout flow (summary):**
-
-1. Customer builds the cart, chooses pickup or delivery (with a saved address), and checks out → API creates an `order` (`pending`) and a `payment` (`awaiting`)
-2. MVP: an admin manually confirms the payment. Advanced phase: the API creates a payment session with the gateway and returns a checkout URL
-3. Payment confirmation (manual or via the gateway's webhook) → a task is enqueued
-4. The worker processes the task: confirms the payment, transitions the order to `paid`, deducts inventory for real (optimistic locking), sends a confirmation email
-5. Unpaid orders automatically expire via a scheduled task, releasing the reserved inventory
-
-## Project structure
-
-```
-app/
-├── main.py            # FastAPI app creation
-├── core/              # config, database, security, dependencies
-├── auth/              # User, Session — registration, login, JWT
-├── addresses/           # Address — multiple saved addresses per user
-├── catalog/           # Category, Product
-├── inventory/          # optimistic locking on stock
-├── cart/              # shopping cart
-├── orders/             # Order, OrderItem, state machine
-├── payments/           # Payment — manual confirmation (MVP) + future gateway
-├── notifications/        # async email sending
-└── worker/             # task queue setup and scheduled tasks
-
-tests/                 # tests per module, including the concurrency test
-alembic/                # database migrations
-db/                   # reference schema.sql + seed.sql
+```text
+Client → FastAPI ──┬─→ PostgreSQL
+                    ├─→ Redis
+                    └─→ arq queue ──→ Async worker
+                                            ├─→ payment confirmation
+                                            ├─→ inventory processing
+                                            ├─→ order expiration
+                                            └─→ email notifications
 ```
 
-## Running locally
+Responsibilities:
 
-Prerequisites: Docker and Docker Compose.
+- **FastAPI** exposes the REST API, validates requests, and coordinates use cases.
+- **PostgreSQL** stores transactional data such as users, products, orders, payments, and history.
+- **Redis** provides catalog caching and the worker queue broker.
+- **The arq worker** executes long-running or asynchronous tasks without blocking the API.
 
-```bash
-# clone the repository
-git clone <repository-url>
-cd ecommerce-backend
+## Planned checkout flow
 
-# copy environment variables
-cp .env.example .env
+1. The customer builds a cart.
+2. They select store pickup or delivery to a saved address.
+3. The API creates a pending order and pending payment.
+4. In the MVP, an administrator manually confirms payment.
+5. Confirmation enqueues a task.
+6. The worker confirms payment, updates the order state, processes inventory, and sends a notification.
+7. Unpaid orders will expire according to rules to be detailed during implementation.
 
-# start the services (api, database, redis)
-docker compose up -d
+The exact point at which inventory is reserved, actually deducted, and released after expiration must be formalized before checkout is implemented.
 
-# apply migrations
-docker compose exec api alembic upgrade head
+## Planned project structure
+
+```text
+ecommerce-backend/
+├── app/
+│   ├── main.py
+│   ├── core/              # configuration, database, security, dependencies
+│   ├── auth/              # users, session, registration, login
+│   ├── addresses/         # saved user addresses
+│   ├── catalog/           # categories and products
+│   ├── inventory/         # concurrent inventory control
+│   ├── cart/              # shopping cart
+│   ├── orders/            # orders, items, state machine
+│   ├── payments/          # payments and manual MVP confirmation
+│   ├── notifications/     # asynchronous notifications
+│   └── worker/            # arq queue and scheduled tasks
+├── tests/
+├── alembic/
+└── db/                    # reference schema and development data
 ```
 
-The API will be available at `http://localhost:8000`, with interactive docs at `http://localhost:8000/docs`.
+This structure will be created incrementally. Modules must maintain clear responsibilities and avoid circular dependencies.
 
-## Tests
+## Defined technical decisions
 
-```bash
-docker compose exec api pytest
+### Inventory
+
+Inventory will use **optimistic locking**, with a version column used to detect concurrent conflicts and allow controlled retries.
+
+`SELECT FOR UPDATE` must not replace this approach without explicit justification and approval. The implementation must include concurrency tests proving that two simultaneous attempts cannot sell the same final unit.
+
+### Orders
+
+Orders will use an auditable state machine. The planned states are:
+
+```text
+pending → awaiting_payment → paid → preparing → out_for_delivery → delivered
 ```
 
-Highlight: `tests/inventory/test_concurrency.py` simulates two concurrent requests competing for the last unit in stock, proving that only one of them succeeds in reserving it.
+Allowed transitions, the actor responsible for each transition, and cancellation or failure states still need to be defined before implementation.
 
-## Technical decisions
+### Payments
 
-- **Optimistic locking instead of `SELECT FOR UPDATE`**: avoids holding row locks under high concurrency, preferring to detect conflicts via a `version` column and retry.
-- **`CHECK` constraints instead of native Postgres `ENUM`** for order status, delivery type, and payment method: easier to change as the project evolves, without `ALTER TYPE`.
-- **Line-item price is "frozen" in `order_item`**: doesn't reference `product.price` directly, so future price changes don't retroactively affect past orders.
-- **`Payment` as a separate entity from `Order`**: leaves room for multiple payment attempts per order and for future gateway integration via an idempotent webhook.
-- **Manual payment confirmation in the MVP**: reduces initial complexity without requiring a remodel once a real gateway (Stripe/Mercado Pago) is integrated later.
+`Payment` will be a separate entity from `Order`. This supports multiple payment attempts and prepares the system for a later gateway integration.
+
+The MVP will use manual confirmation. A real Stripe or other payment-gateway integration must not be introduced before there is a defined need. When added, it must use an idempotent webhook.
+
+### Historical data
+
+Each product price must be copied and preserved in the order item. Future catalog price changes must not alter existing orders.
+
+### Schema
+
+Order status, delivery type, and payment method will use `CHECK` constraints instead of PostgreSQL native `ENUM` types, retaining more flexibility for change.
+
+Schema changes will use Alembic migrations. Applied migrations must not be edited; later changes require a new migration.
+
+## Local development
+
+Run instructions will be added when the following are available:
+
+- backend Dockerfile;
+- Python dependency file;
+- `.env.example`;
+- Alembic configuration;
+- initial FastAPI application;
+- initial migrations.
 
 ## Status
 
-- [x] Architecture and data modeling (ER diagram + SQL schema)
-- [ ] Environment setup (Docker Compose, Alembic)
-- [ ] Authentication (registration/login with JWT)
-- [ ] Addresses (CRUD for user addresses)
-- [ ] Catalog (products, categories)
+- [x] Stack and overall architecture defined
+- [x] Modular organization planned
+- [x] Core inventory, order, payment, and historical-data decisions defined
+- [ ] Detailed data modeling and ER diagram
+- [ ] Initial FastAPI structure
+- [ ] Dockerfile and environment configuration
+- [ ] PostgreSQL, Redis, and Alembic configuration
+- [ ] Initial migrations
+- [ ] Authentication
+- [ ] Addresses
+- [ ] Catalog
 - [ ] Cart
-- [ ] Orders: pickup/delivery + inventory with optimistic locking
-- [ ] Payment (manual confirmation in the MVP → gateway later)
-- [ ] Caching, load tests, and deployment
-
----
-
+- [ ] Orders and optimistic-locking inventory
+- [ ] Manual payment confirmation and worker
+- [ ] Caching, notifications, and order expiration
+- [ ] Unit, integration, and concurrency tests
